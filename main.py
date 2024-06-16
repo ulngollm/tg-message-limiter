@@ -3,7 +3,7 @@ import os
 
 from pyrogram import Client
 from pyrogram.types import Message
-from datetime import datetime, time
+from datetime import datetime, time, date
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -35,25 +35,30 @@ async def my_handler(client: Client, message: Message):
     current_chat = message.chat.username
     if current_chat in restricted_users:
         await client.read_chat_history(message.chat.id)
-        date_send = datetime.combine(datetime.today(), time(23, 00))
+        date_send = datetime.combine(datetime.today(), time(23, 45))
         await message.forward(buffer_chat, disable_notification=True, schedule_date=date_send)
 
-        if not current_chat in recieved_messages:
-            recieved_messages[current_chat] = 1
+        today = date.today().isoformat()
+        if not today in recieved_messages:
+            recieved_messages[today] = {}
+
+        if not current_chat in recieved_messages[today]:
+            recieved_messages[today][current_chat] = 1
             await message.reply(f"Ваше сообщение принято. Оно отправится пользователю в {date_send}.\n"
-                                f"Лимит сообщений на день: {limit}. Осталось {limit - 1} \n")
+                                f"Лимит сообщений в сутки: {limit}. \n"
+                                f"Осталось {limit - 1} \n")
             return
 
-        recieved_messages[current_chat] += 1
-        if recieved_messages[current_chat] < limit:
-            await message.reply(f"Ваше сообщение принято. Осталось {limit - recieved_messages[current_chat]} сообщений")
+        recieved_messages[today][current_chat] += 1
+        if recieved_messages[today][current_chat] < limit:
+            await message.reply(f"Ваше сообщение принято. Осталось {limit - recieved_messages[today][current_chat]} сообщений сегодня")
             return
 
-        if recieved_messages[current_chat] == limit:
-            await message.reply('Вы отправили последнее сообщение. Следующие сообщения не будут отправлены')
+        if recieved_messages[today][current_chat] == limit:
+            await message.reply('Вы отправили последнее сообщение. Следующие сообщения не будут отправлены. Лимит обновится завтра')
             return
 
-        if recieved_messages[current_chat] > limit:
+        if recieved_messages[today][current_chat] > limit:
             await message.react(random.choice(available_reactions))
             return
 
